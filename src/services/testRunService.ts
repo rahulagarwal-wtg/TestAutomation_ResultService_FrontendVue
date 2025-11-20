@@ -55,9 +55,9 @@ export default {
     branch: string,
     buildNumber: number
   ) {
-    return apiClient.get<TestRunSummary>(
-      `/test-runs/summary/${server}/${runType}/${branch}/${buildNumber}`
-    )
+    return apiClient.get<TestRunSummary>('/test-runs/summary',{
+      params: { server, runType, branch, buildNumber }
+    })
   },
 
   // Get module details
@@ -68,9 +68,9 @@ export default {
     buildNumber: number,
     module: string
   ) {
-    return apiClient.get<ModuleDetailsResponse>(
-      `/test-runs/details/${server}/${runType}/${branch}/${buildNumber}/${module}`
-    )
+    return apiClient.get<ModuleDetailsResponse>('/test-runs/details', {
+      params: { server, runType, branch, buildNumber, module}
+    })
   },
 
   // Get failures by reason
@@ -80,9 +80,9 @@ export default {
     branch: string,
     buildNumber: number
   ) {
-    return apiClient.get<FailuresByReasonResponse>(
-      `/test-runs/failures/${server}/${runType}/${branch}/${buildNumber}`
-    )
+    return apiClient.get<FailuresByReasonResponse>('/test-runs/failures', {
+      params: { server, runType, branch, buildNumber}
+    })
   },
 
   // Get rerun summary
@@ -92,26 +92,8 @@ export default {
     branch: string,
     buildNumber: number
   ) {
-    return apiClient.get<TestRunSummary[]>(
-      `/test-runs/rerun-summary/${server}/${runType}/${branch}/${buildNumber}`
-    )
-  },
-
-  // Get failure data (from ResultsController)
-  getFailureData(
-    server: string,
-    runType: string,
-    branch: string,
-    buildNumber: number
-  ) {
-    return apiClient.get<string>(
-      `/getFailureData/${server}/${runType}/${branch}/${buildNumber}`,
-      { responseType: 'text' as any }
-    )
-  },
-
-  // Record scenario result (from ResultsController)
-  recordScenarioResult(scenarioResult: ScenarioResult) {
-    return apiClient.post<void>('/scenario/record', scenarioResult)
+    return apiClient.get<TestRunSummary[]>( '/test-runs/rerun-summary', { 
+      params: { server, runType, branch, buildNumber }
+   })
   }
 }
