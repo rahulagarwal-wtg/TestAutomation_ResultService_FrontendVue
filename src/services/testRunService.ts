@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
 
 export default {
   // Get dashboard data
-  getDashboardData(limit: number = 5) {
+  getDashboardData(limit: number = 25) {
     return apiClient.get<DashboardResponse>('/test-runs/dashboard', {
       params: { limit }
     })

@@ -136,10 +136,7 @@
                   <i class="bi bi-list-ol me-1"></i>Show Last
                 </label>
                 <select class="form-select" v-model="limit" @change="loadDashboard">
-                  <option :value="5">5 Builds</option>
-                  <option :value="10">10 Builds</option>
-                  <option :value="20">20 Builds</option>
-                  <option :value="30">30 Builds</option>
+                  <option :value="25">25 Builds</option>
                   <option :value="50">50 Builds</option>
                 </select>
               </div>
@@ -209,7 +206,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="build in runTypeGroup.builds" :key="build.id">
+                  <tr v-for="build in getPaginatedBuilds(runTypeGroup.runType, runTypeGroup.builds)" :key="build.id">
                     <td>{{ formatDate(build.datetimeStart, 'short') }}</td>
                     <td>
                       <span class="badge bg-secondary">#{{ build.buildNumber }}</span>
@@ -236,6 +233,51 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div v-if="runTypeGroup.builds.length > itemsPerPage" class="card-footer bg-white border-top">
+              <nav aria-label="Build pagination">
+                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                  <li class="page-item" :class="{ disabled: (currentPage[runTypeGroup.runType] || 1) === 1 }">
+                    <button 
+                      class="page-link" 
+                      @click="changePage(runTypeGroup.runType, (currentPage[runTypeGroup.runType] || 1) - 1)"
+                      :disabled="(currentPage[runTypeGroup.runType] || 1) === 1">
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+                  
+                  <li 
+                    v-for="page in getTotalPages(runTypeGroup.builds.length)" 
+                    :key="page"
+                    class="page-item" 
+                    :class="{ active: (currentPage[runTypeGroup.runType] || 1) === page }">
+                    <button class="page-link" @click="changePage(runTypeGroup.runType, page)">
+                      {{ page }}
+                    </button>
+                  </li>
+                  
+                  <li 
+                    class="page-item" 
+                    :class="{ disabled: (currentPage[runTypeGroup.runType] || 1) === getTotalPages(runTypeGroup.builds.length) }">
+                    <button 
+                      class="page-link" 
+                      @click="changePage(runTypeGroup.runType, (currentPage[runTypeGroup.runType] || 1) + 1)"
+                      :disabled="(currentPage[runTypeGroup.runType] || 1) === getTotalPages(runTypeGroup.builds.length)">
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+              
+              <div class="text-center mt-2">
+                <small class="text-muted">
+                  Showing {{ ((currentPage[runTypeGroup.runType] || 1) - 1) * itemsPerPage + 1 }} 
+                  to {{ Math.min((currentPage[runTypeGroup.runType] || 1) * itemsPerPage, runTypeGroup.builds.length) }} 
+                  of {{ runTypeGroup.builds.length }} builds
+                </small>
+              </div>
             </div>
           </div>
         </div>
@@ -272,9 +314,11 @@ const router = useRouter()
 const dashboardData = ref<DashboardResponse | null>(null)
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
-const limit = ref<number>(10)
+const limit = ref<number>(25)
 const searchTerm = ref<string>('')
 const selectedRunType = ref<string>('all')
+const currentPage = ref<Record<string, number>>({}) // Track page per run type
+const itemsPerPage = 5
 
 // Computed statistics
 const totalBuilds = computed((): number => {
@@ -332,6 +376,31 @@ const filteredRunTypes = computed((): RunTypeGroup[] => {
   return filtered
 })
 
+// Paginated builds for each run type
+const getPaginatedBuilds = (runType: string, builds: TestRunView[]) => {
+  const page = currentPage.value[runType] || 1
+  const start = (page - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return builds.slice(start, end)
+}
+
+const getTotalPages = (buildsLength: number): number => {
+  return Math.ceil(buildsLength / itemsPerPage)
+}
+
+const changePage = (runType: string, page: number): void => {
+  currentPage.value[runType] = page
+}
+
+const initializePages = (): void => {
+  if (!dashboardData.value) return
+  dashboardData.value.runTypes.forEach(rt => {
+    if (!currentPage.value[rt.runType]) {
+      currentPage.value[rt.runType] = 1
+    }
+  })
+}
+
 // Methods
 const loadDashboard = async (): Promise<void> => {
   loading.value = true
@@ -340,6 +409,7 @@ const loadDashboard = async (): Promise<void> => {
   try {
     const response = await testRunService.getDashboardData(limit.value)
     dashboardData.value = response.data
+    initializePages()
   } catch (err) {
     error.value = 'Failed to load dashboard data. Please try again.'
     console.error('Dashboard error:', err)
@@ -355,6 +425,10 @@ const refreshDashboard = (): void => {
 const clearFilters = (): void => {
   searchTerm.value = ''
   selectedRunType.value = 'all'
+  // Reset pagination
+  Object.keys(currentPage.value).forEach(key => {
+    currentPage.value[key] = 1
+  })
 }
 
 const viewSummary = (build: TestRunView): void => {
@@ -397,8 +471,13 @@ const formatDate = (dateString: string, format: 'long' | 'short' = 'long'): stri
 const formatDuration = (start: string, end: string): string => {
   if (!start || !end) return 'N/A'
   const diff = new Date(end).getTime() - new Date(start).getTime()
-  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
   const seconds = Math.floor((diff % 60000) / 1000)
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`
+  }
   return `${minutes}m ${seconds}s`
 }
 
@@ -433,5 +512,29 @@ tbody tr {
 
 tbody tr:hover {
   background-color: rgba(0, 123, 255, 0.05);
+}
+
+.pagination {
+  margin: 0;
+}
+
+.page-link {
+  color: #0d6efd;
+  border-color: #dee2e6;
+}
+
+.page-link:hover {
+  background-color: #e9ecef;
+}
+
+.page-item.active .page-link {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.page-item.disabled .page-link {
+  color: #6c757d;
+  pointer-events: none;
+  background-color: #fff;
 }
 </style>

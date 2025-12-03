@@ -9,7 +9,7 @@ export const useTestRunStore = defineStore('testRun', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function fetchDashboardData(limit: number = 10) {
+  async function fetchDashboardData(limit: number = 25) {
     loading.value = true
     error.value = null
     try {
